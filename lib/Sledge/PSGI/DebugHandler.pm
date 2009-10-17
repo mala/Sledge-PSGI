@@ -4,18 +4,21 @@ package Sledge::PSGI::DebugHandler;
 use Devel::Symdump;
 use Devel::StackTrace;
 
-our $DEBUG_PATH = "debug";
+our $DEBUG_PATH = "/debug";
 
 sub handle_request {
     my ($class, $self, $env) = @_;
     my $path_info = $env->{PATH_INFO};
-    if ($path_info =~{^$DEBUG_PATH/([^/]+)}) {
+    warn $path_info;
+    if ($path_info =~m{^$DEBUG_PATH/([^/]+)}) {
         my $method = "handle_" . $1;
+        warn $method;
+        warn $class;
         return unless $class->can($method);
-        $class->$method($self, $env);
+        return $class->$method($self, $env);
     }
     # debugger index
-    if ($path_info =~{^$DEBUG_PATH/}) {
+    if ($path_info =~m{^$DEBUG_PATH/}) {
         # TODO
     }
 }

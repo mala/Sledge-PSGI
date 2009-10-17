@@ -4,7 +4,8 @@ use strict;
 use base qw(Exporter);
 our @EXPORT_OK = qw(handle_request);
 use Data::Dumper;
-use Devel::Symdump;
+
+our $Debug = 1;
 
 sub handle_request {
     my ($self, $psgi_env) = @_;
@@ -17,13 +18,14 @@ sub handle_request {
     # for Compatibility
     local *ENV = $psgi_env;
 
-    my $path_info = $psgi_env->{PATH_INFO};
-    my $action = $self->lookup($path_info);
-
-    if ($self->debug_level) {
+    if ($Debug) {
+        require Sledge::PSGI::DebugHandler;
         my $res = Sledge::PSGI::DebugHandler->handle_request($self, $psgi_env);
         return $res if $res;
     }
+
+    my $path_info = $psgi_env->{PATH_INFO};
+    my $action = $self->lookup($path_info);
 
     if (!$action) {
         # just a render Template File
