@@ -21,7 +21,7 @@ sub handle_request {
     my $action = $self->lookup($path_info);
 
     if ($self->debug_level) {
-        my $res = Sledge::PSGI::DebugHandler($self, $psgi_env);
+        my $res = Sledge::PSGI::DebugHandler->handle_request($self, $psgi_env);
         return $res if $res;
     }
 
@@ -86,6 +86,7 @@ sub make_response {
     $res->status(200) unless $res->status;
 
     if ( $self->r->stream ) {
+        # not output content-length etc.
         $res->body($self->r->stream);
         return $res;
     }

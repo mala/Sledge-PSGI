@@ -1,38 +1,57 @@
 package Sledge::PSGI::DebugHandler;
 
 # Debugger
+use Devel::Symdump;
+use Devel::StackTrace;
+
+our $DEBUG_PATH = "debug";
 
 sub handle_request {
-    my ($self, $env) = @_;
-    my $path_info = $env->{PATH_INFO}; 
-    if ($path_info =~m{^/versions}) {
-        no strict qw(refs);
-        my @versions = map { [$_, ${ "$_" . "::VERSION" }] } Devel::Symdump->rnew->packages;
-        @versions = sort { $a->[0] cmp $b->[0] } grep { $_->[1] } @versions;
-        my @table = map { sprintf qq{<tr><td>%s</td><td>%s</td></tr>}, @$_ } @versions;
-        my $body = ["<table>", @table, "</table>"];
-        my $res = [ 200, [ 'Content-Type' => 'text/html' ], $body];
-        return $res;
+    my ($class, $self, $env) = @_;
+    my $path_info = $env->{PATH_INFO};
+    if ($path_info =~{^$DEBUG_PATH/([^/]+)}) {
+        my $method = "handle_" . $1;
+        return unless $class->can($method);
+        $class->$method($self, $env);
     }
-    if ($path_info =~m{^/modules}) {
-        my @tmp = keys %INC;
-        my $res = [ 200, [ 'Content-Type' => 'text/plain' ], [join "\n", sort @tmp] ];
-        return $res;
+    # debugger index
+    if ($path_info =~{^$DEBUG_PATH/}) {
+        # TODO
     }
-
-    if ($path_info =~m{^/actions}) {
-        my @tmp = keys %{$self->ActionMap};
-        my $body = "<table>";
-        for my $action (sort @tmp) {
-            $body .= sprintf qq{<tr><td>%s</td><td>%s</td></tr>}, $action, $self->ActionMap->{$action}->{class};
-        }
-        $body .= "</table>";
-        my $res = [ 200, [ 'Content-Type' => 'text/html' ], [ $body ]];
-        return $res;
-    }
- 
 }
 
+sub handle_trace {
+    
+}
+
+
+sub handle_versions {
+    no strict qw(refs);
+    my @versions = map { [$_, ${ "$_" . "::VERSION" }] } Devel::Symdump->rnew->packages;
+    @versions = sort { $a->[0] cmp $b->[0] } grep { $_->[1] } @versions;
+    my @table = map { sprintf qq{<tr><td>%s</td><td>%s</td></tr>}, @$_ } @versions;
+    my $body = ["<table>", @table, "</table>"];
+    my $res = [ 200, [ 'Content-Type' => 'text/html' ], $body];
+    return $res;
+}
+
+sub handle_modules {
+    my @tmp = keys %INC;
+    my $res = [ 200, [ 'Content-Type' => 'text/plain' ], [join "\n", sort @tmp] ];
+    return $res;
+}
+
+sub handle_actions {
+    my ($class, $self, $env) = @_;
+    my @tmp = keys %{$self->ActionMap};
+    my $body = "<table>";
+    for my $action (sort @tmp) {
+        $body .= sprintf qq{<tr><td>%s</td><td>%s</td></tr>}, $action, $self->ActionMap->{$action}->{class};
+    }
+    $body .= "</table>";
+    my $res = [ 200, [ 'Content-Type' => 'text/html' ], [ $body ]];
+    return $res;
+}
 
 1;
 
