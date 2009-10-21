@@ -5,6 +5,7 @@ use strict;
 use base qw(Class::Data::Inheritable);
 
 use Carp ();
+use Class::Trigger;
 use Class::Inspector;
 use File::Basename ();
 use UNIVERSAL::require;
@@ -21,14 +22,10 @@ our $StaticExtension = '.html';
 
 sub import {
     my $pkg = shift;
-    # warn "import ...";
-    # warn $pkg;
-    
     $pkg->mk_classdata('ActionMap' => {});
     $pkg->mk_classdata('ActionMapKeys' => []);
     $pkg->mk_classdata('components' => []);
 }
-
 
 # ActionMap 
 #  /foo/bar => { class => MyApp::Foo, page => "bar" }
@@ -197,11 +194,11 @@ sub override_compat {
 
     # monkey patch for Sledge::Pages::Compat;
     require Sledge::Pages::Compat;
-        *{Sledge::Pages::Compat::import} = sub {
-            my $pkg = caller;
-            no strict 'refs';
-            unshift @{"$pkg\::ISA"}, $pages_class;
-         }
+    *{Sledge::Pages::Compat::import} = sub {
+        my $pkg = caller;
+        no strict 'refs';
+        unshift @{"$pkg\::ISA"}, $pages_class;
+    }
 }
 
 sub run {
@@ -229,6 +226,7 @@ Sledge::PSGI - run Sledge based application on PSGI/Plack
 
  # myapp.psgi
  use MyApp;
+ # MyApp->override_compat; # override Sledge::Pages::Compat for using Sledge::PSGI
  MyApp->setup; # auto-setup by scanning MyApp::Pages::*
  # MyApp->setup("map.properties"); # setup by map.properties file
  my $app = sub { MyApp->new->run(@_) };

@@ -14,7 +14,12 @@ sub handle_request {
     if ($self->{ModifierClass}) {
         $self->{ModifierClass}->call($psgi_env);
     }
-   
+  
+    # Copy SLEDGE_ keys on %ENV
+    map {
+        $psgi_env->{$_} = $ENV{$_};
+    } grep { /^SLEDGE/ } keys %ENV;
+
     # for Compatibility
     local *ENV = $psgi_env;
 
@@ -45,17 +50,19 @@ sub handle_request {
     if ($action->{args}) {
         $pages->r->arguments($action->{args});
     }
-    dispatch_psgi($pages, $action->{page})
+    $self->call_trigger("before_dispatch_psgi", $pages, $action->{page});
+    dispatch_psgi($self, $pages, $action->{page})
 }
 
+# create PSGI response
 sub dispatch_psgi {
-    my ( $self, $page ) = @_;
+    my ($psgi, $self, $page ) = @_;
 
     local *Sledge::Registrar::context = sub { $self };
     Sledge::Exception->do_trace(1) if $self->debug_level;
 
     my $res = eval { 
-        make_response($self, $page);
+        make_response($psgi, $self, $page);
     };
     
     if ($@) {
@@ -63,12 +70,16 @@ sub dispatch_psgi {
     }
     # $self->handle_exception($@) if $@;
     # my $res = $self->response;
+
+    $psgi->call_trigger("after_dispatch_psgi", $self, $res); # before destroy for debug
     $self->_destroy_me;
+
     return $res->finalize;
 }
 
+# craete response Body
 sub make_response {
-    my ( $self, $page ) = @_;
+    my ($psgi, $self, $page ) = @_;
     $self->init_dispatch($page);
     $self->invoke_hook('BEFORE_DISPATCH') unless $self->finished;
 
